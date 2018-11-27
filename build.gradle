@@ -1,0 +1,32 @@
+plugins {
+    id 'java'
+    id 'idea'
+    id 'eclipse'
+    id 'org.inferred.processors' version '2.1.0'
+}
+
+group 'net.ckozak'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'com.squareup.okhttp3:okhttp:3.11.0'
+    compile 'org.openjdk.jmh:jmh-core:1.21'
+    annotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.21'
+    compile 'org.glassfish.jersey.containers:jersey-container-servlet:2.25.1'
+    compile 'org.glassfish.jersey.media:jersey-media-json-jackson:2.25.1'
+    compile 'io.undertow:undertow-servlet:2.0.16.Final'
+    compile 'io.undertow:undertow-core:2.0.16.Final'
+    compile 'com.google.guava:guava:23.6.1-jre'
+}
+
+project.task(type: JavaExec, 'benchmark') {
+    main = 'org.openjdk.jmh.Main'
+    classpath = sourceSets.main.runtimeClasspath
+    maxHeapSize = '1024m'
+}
