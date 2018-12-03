@@ -1,20 +1,14 @@
 package net.ckozak;
 
-import com.google.common.collect.ImmutableList;
 import io.undertow.Undertow;
 import io.undertow.server.DefaultByteBufferPool;
 import io.undertow.server.HandlerWrapper;
 import io.undertow.server.HttpHandler;
+import io.undertow.server.HttpServerExchange;
+import io.undertow.server.handlers.BlockingHandler;
 import io.undertow.server.handlers.RequestBufferingHandler;
-import io.undertow.servlet.Servlets;
-import io.undertow.servlet.api.DeploymentInfo;
-import io.undertow.servlet.api.DeploymentManager;
-import io.undertow.servlet.util.ImmediateInstanceFactory;
 import okhttp3.OkHttpClient;
 import okhttp3.Protocol;
-import org.glassfish.jersey.jackson.JacksonFeature;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.servlet.ServletContainer;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
@@ -24,6 +18,7 @@ import org.xnio.Options;
 import org.xnio.SslClientAuthMode;
 
 import java.security.KeyStore;
+import java.util.Collections;
 
 @State(Scope.Benchmark)
 public class BenchmarkState {
@@ -62,23 +57,18 @@ public class BenchmarkState {
                 .sslSocketFactory(
                         SSLUtil.createSSLContext(null, truststore).getSocketFactory(),
                         SSLUtil.getX509TrustManager(truststore))
-                .protocols(ImmutableList.of(Protocol.HTTP_1_1))
+                .protocols(Collections.singletonList(Protocol.HTTP_1_1))
                 .hostnameVerifier((name, session) -> true)
                 .build();
     }
 
     private void setupServer() throws Exception {
-        DeploymentInfo deployment = Servlets.deployment()
-                .setClassLoader(getClass().getClassLoader())
-                .setContextPath("/")
-                .setDeploymentName("root")
-                .addServlet(Servlets.servlet("jersey", ServletContainer.class, new ImmediateInstanceFactory<>(new ServletContainer(new ResourceConfig()
-                        .register(new UndertowBenchmark.BenchmarkResource())
-                        .register(JacksonFeature.class)
-                ))).addMapping("/api/*"));
-        DeploymentManager deploymentManager = Servlets.newContainer().addDeployment(deployment);
-        deploymentManager.deploy();
-        HttpHandler handler = deploymentManager.start();
+        HttpHandler handler = new BlockingHandler(new HttpHandler() {
+            @Override
+            public void handleRequest(HttpServerExchange exchange) throws Exception {
+                // nop
+            }
+        });
         handler = wrapper.wrap(handler);
         undertow = Undertow.builder()
                 .setWorkerThreads(100)

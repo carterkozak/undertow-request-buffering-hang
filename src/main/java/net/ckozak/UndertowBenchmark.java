@@ -1,7 +1,5 @@
 package net.ckozak;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.ByteStreams;
 import okhttp3.MediaType;
 import okhttp3.Request;
@@ -20,37 +18,19 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.core.HttpHeaders;
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
 
 @Measurement(iterations = 3, time = 3)
-@Warmup(iterations = 10, time = 5)
+@Warmup(iterations = 3, time = 5)
 @Fork(value = 1)
 public class UndertowBenchmark {
 
-    public static final int NUMBER_OF_NUMBERS_SMALL = 3200;
-    public static final List<Integer> NUMBERS_SMALL = IntStream.rangeClosed(0, NUMBER_OF_NUMBERS_SMALL)
-            .boxed().collect(Collectors.toList());
-
-    public static final Request POST_NUMBERS_REQUEST_SMALL = makeRequestBuilder("/postNumbers").post(
-            RequestBody.create(MediaType.parse("application/json"), createListByte(NUMBERS_SMALL))
+    private static final Request POST_NUMBERS_REQUEST_SMALL = makeRequestBuilder("/postNumbers").post(
+            RequestBody.create(MediaType.parse("application/json"), new byte[16000])
     ).build();
-
-    private static byte[] createListByte(List<Integer> numbers) {
-        try {
-            return new ObjectMapper().writeValueAsBytes(numbers);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException();
-        }
-    }
 
 
     @Threads(32)
@@ -59,20 +39,6 @@ public class UndertowBenchmark {
     @OutputTimeUnit(TimeUnit.SECONDS)
     public void parallelRequestsPostNumbersSmall(BenchmarkState state) {
         runRequest(state, POST_NUMBERS_REQUEST_SMALL);
-    }
-
-    @Path("/")
-    public interface BenchmarkService {
-        @POST
-        @Path("/postNumbers")
-        int postNumbers(List<Integer> numbers);
-    }
-
-    public static class BenchmarkResource implements BenchmarkService {
-        @Override
-        public int postNumbers(List<Integer> numbers) {
-            return numbers.stream().reduce((num1, num2) -> num1 + num2).get();
-        }
     }
 
     private static void runRequest(BenchmarkState state, Request request) {
@@ -86,7 +52,7 @@ public class UndertowBenchmark {
 
     private static Request.Builder makeRequestBuilder(String endpoint) {
         return new Request.Builder()
-                .header(HttpHeaders.ACCEPT, "application/json")
+                .header("Accept", "application/json")
                 .url("https://localhost:" + BenchmarkState.PORT + "/api" + endpoint);
     }
 
